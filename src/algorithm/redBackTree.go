@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 //type RBTree struct {
 //	root *Node
 //}
@@ -131,6 +136,50 @@ func (n *Node) traverse(fn func(node *Node)) {
 	n.right.traverse(fn)
 }
 
+func (n *Node) preorder() {
+	//fmt.Printf("(%v %v)", n.key, n.value)
+	//if n.parent == nil {
+	//	fmt.Printf("nil")
+	//} else {
+	//	fmt.Printf("whose parent is %v", n.parent.key)
+	//}
+	//if n.color == RED {
+	//	fmt.Println(" and color RED")
+	//} else {
+	//	fmt.Println(" and color BLACK")
+	//}
+	//if n.left != nil {
+	//	fmt.Printf("%v's left child is ", n.key)
+	//	n.left.preorder()
+	//}
+	//if n.right != nil {
+	//	fmt.Printf("%v's right child is ", n.key)
+	//	n.right.preorder()
+	//}
+}
+
+func printTree(root *Node, indent int) {
+	if root == nil {
+		return
+	}
+
+	// Print right subtree
+	printTree(root.right, indent+4)
+
+	// Print current node
+	fmt.Printf("%s%d(%s)\n", strings.Repeat(" ", indent), root.key, colorToString(root.color))
+
+	// Print left subtree
+	printTree(root.left, indent+4)
+}
+
+func colorToString(c Color) string {
+	if c == RED {
+		return "Red"
+	}
+	return "Black"
+}
+
 func NewNode(key int64, value string) *Node {
 	return &Node{
 		key:   key,
@@ -191,7 +240,7 @@ func (t *Tree) insertRepairNode(x *Node) {
 		//	x的父节点是左节点
 		if x.parent == x.grandParent().left {
 			y = x.grandParent().right
-			if !y.colorOf() {
+			if y.colorOf() == RED {
 				// Case 1: N's uncle (y) is red
 				x.parent.color = BLACK
 				y.color = BLACK
@@ -212,7 +261,7 @@ func (t *Tree) insertRepairNode(x *Node) {
 			// Symmetric cases for the right side of the tree
 			// (mirrored versions of Cases 1, 2, and 3)
 			y = x.grandParent().left
-			if !y.colorOf() {
+			if y.colorOf() == RED {
 				x.parent.color = BLACK
 				y.color = BLACK
 				x = x.grandParent()
@@ -357,6 +406,12 @@ func (t *Tree) delete(p *Node) {
 		p.key = s.key
 		p.value = s.value
 		p = s
+
+		//if s.parent.left == s {
+		//	s.parent.left = nil
+		//}else {
+		//	s.parent.right = nil
+		//}
 	} // p has 2 children
 
 	// Start fixup at replacement node, if it exists.
@@ -406,10 +461,161 @@ func (t *Tree) delete(p *Node) {
 	}
 }
 
+// 删除后修复
 func (t *Tree) deleteRepairNode(x *Node) {
 
+	if x == nil {
+		return
+	}
+	var w *Node
+	for x != t.root && x.color == BLACK {
+		if x == x.parent.left {
+			w = x.sibling()
+			if w.color == RED {
+				w.color = BLACK
+				x.parent.color = RED
+				t.leftRotate(x.parent)
+				w = x.parent.right
+			}
+			if w.left.color == BLACK && w.right.color == BLACK {
+				w.color = RED
+				x = x.parent
+			} else {
+				if w.right.color == BLACK {
+					w.left.color = BLACK
+					w.color = RED
+					t.rightRotate(w)
+					w = x.parent.right
+				}
+				w.color = x.parent.color
+				x.parent.color = BLACK
+				w.right.color = BLACK
+				t.leftRotate(x.parent)
+				x = t.root
+			}
+		} else {
+			w = x.sibling()
+			if w.color == RED {
+				w.color = BLACK
+				x.parent.color = RED
+				t.rightRotate(x.parent)
+				w = x.parent.left
+			}
+			if w.left.color == BLACK && w.right.color == BLACK {
+				w.color = RED
+				x = x.parent
+			} else {
+				if w.left.color == BLACK {
+					w.right.color = BLACK
+					w.color = RED
+					t.leftRotate(w)
+					w = x.parent.left
+				}
+				w.color = x.parent.color
+				x.parent.color = BLACK
+				w.left.color = BLACK
+				t.rightRotate(x.parent)
+				x = t.root
+			}
+
+		}
+	}
+	x.color = BLACK
+}
+
+// NewTree returns a new rbtree
+func NewTree() *Tree {
+	return &Tree{}
+}
+
+func (t *Tree) Insert(key int64, value string) {
+	x := NewNode(key, value)
+	// Normal BST insertion
+	t.insert(x)
+}
+
+// String returns a string representation of container
+func (t *Tree) String() string {
+	str := "RedBlackTree\n"
+	if t.root != nil {
+		output(t.root, "", true, &str)
+	}
+	return str
+}
+
+func output(node *Node, prefix string, isTail bool, str *string) {
+	if node.right != nil {
+		newPrefix := prefix
+		if isTail {
+			newPrefix += "│   "
+		} else {
+			newPrefix += "    "
+		}
+		output(node.right, newPrefix, false, str)
+	}
+	*str += prefix
+	if isTail {
+		*str += "└── "
+	} else {
+		*str += "┌── "
+	}
+	*str += node.String() + "\n"
+	if node.left != nil {
+		newPrefix := prefix
+		if isTail {
+			newPrefix += "    "
+		} else {
+			newPrefix += "│   "
+		}
+		output(node.left, newPrefix, true, str)
+	}
+}
+
+func (n *Node) String() string {
+	s := "R"
+	if n.color == BLACK {
+		s = "B"
+	}
+	return fmt.Sprintf("%v(%s)", n.key, s)
 }
 
 func main() {
+	tree := NewTree()
 
+	tree.Insert(1, "1")
+	s := tree.String()
+	fmt.Println(s)
+	tree.Insert(2, "2")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(3, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(4, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(5, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(6, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(7, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(8, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	tree.Insert(9, "3")
+	s = tree.String()
+	fmt.Printf(s)
+	//tree.Insert(8, "3")
+	//tree.Insert(9, "3")
+	//tree.Insert(10, "3")
+
+	//n := tree.Search(1)
+	//printTree(tree.root, 0)
+	//if n.value == "1" {
+	//	fmt.Println("Error whilst insertion")
+	//}
 }
